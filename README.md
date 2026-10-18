@@ -1,4 +1,4 @@
-# Word → Brightspace
+# Word → Text Box
 
 Converts a Word `.docx` into rich text that keeps its formatting when pasted
 into a Brightspace text-submission box.
@@ -17,8 +17,9 @@ into a Brightspace text-submission box.
 **Text check.** The original text comes from `mammoth.extractRawText`. The final text
 is extracted from the exact HTML that gets copied. Both are normalized the same
 way (runs of whitespace collapse to one space, nothing else), then compared word by
-word. Footnotes and endnotes are compared one by one. The page shows "Text
-identical ✓" or a diff with removed and added words highlighted.
+word. Footnotes and endnotes are compared one by one. The check always runs;
+when the text matches nothing is shown, and when it differs a panel opens with
+removed and added words highlighted.
 
 **Content warnings.** The raw Word XML is scanned for things that can't be
 converted cleanly, and each one is listed with a count:

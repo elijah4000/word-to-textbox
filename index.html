@@ -4,114 +4,91 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="referrer" content="no-referrer" />
-    <title>Word to Brightspace</title>
-    <meta name="description" content="Convert a Word .docx into formatted text you can paste into a Brightspace submission box. Runs entirely in your browser." />
+    <title>Word to Text Box</title>
+    <meta name="description" content="Convert a Word .docx into formatted text you can paste into a text box. Runs entirely in your browser." />
   </head>
   <body>
-    <header class="top">
-      <h1>Word → Brightspace</h1>
-      <p class="tagline">
-        Turn a <code>.docx</code> into formatted text for a Brightspace text-submission box.
-        <strong>Your file never leaves this browser:</strong> no upload, no AI, no tracking.
-      </p>
-    </header>
+    <main class="page">
+      <h1>Word → Text Box</h1>
 
-    <main class="layout">
-      <section class="panel controls" aria-label="File and options">
-        <label class="drop" id="drop">
-          <input type="file" id="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" />
-          <span class="drop-title">Drop a .docx here</span>
-          <span class="drop-sub">or click to choose a file</span>
-          <span class="drop-name" id="file-name"></span>
-        </label>
-        <p class="error" id="load-error" role="alert" hidden></p>
+      <label class="drop" id="drop">
+        <input type="file" id="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" />
+        <span class="drop-title" id="drop-title">Drop a .docx here or click to choose</span>
+      </label>
+      <p class="error" id="load-error" role="alert" hidden></p>
 
-        <fieldset class="options" id="options" disabled>
-          <legend>Formatting</legend>
-          <label><input type="checkbox" id="opt-double" /> Double spacing</label>
-          <label><input type="checkbox" id="opt-hanging" checked /> Hanging indent for Works Cited / References <span class="hint" id="hanging-count"></span></label>
-          <label><input type="checkbox" id="opt-images" checked /> Embed images <span class="hint" id="image-size"></span></label>
-          <label class="row">Font
-            <select id="opt-font">
-              <option value="">Leave as Brightspace default</option>
-              <option value="'Times New Roman', Times, serif">Times New Roman</option>
-              <option value="Arial, Helvetica, sans-serif">Arial</option>
-              <option value="Calibri, Carlito, sans-serif">Calibri</option>
-              <option value="Georgia, serif">Georgia</option>
-              <option value="Verdana, sans-serif">Verdana</option>
-            </select>
-          </label>
-          <label class="row">Size
-            <select id="opt-size">
-              <option value="">Default</option>
-              <option value="10pt">10 pt</option>
-              <option value="11pt">11 pt</option>
-              <option value="12pt">12 pt</option>
-              <option value="14pt">14 pt</option>
-            </select>
-          </label>
-        </fieldset>
-
-        <div class="copy-box">
-          <label class="ack" id="ack-row" hidden>
-            <input type="checkbox" id="ack" />
-            I have reviewed the text differences and warnings below.
-          </label>
-          <button type="button" id="copy" class="copy" disabled>Copy for Brightspace</button>
-          <p class="status" id="copy-status" role="status" aria-live="polite"></p>
-          <details class="guide" open>
-            <summary>How to paste</summary>
-            <ol>
-              <li>Click <b>Copy for Brightspace</b>.</li>
-              <li>In Brightspace, open the assignment and click inside the text-submission box.</li>
-              <li>Paste with <kbd>Ctrl</kbd>+<kbd>V</kbd> (<kbd>⌘</kbd>+<kbd>V</kbd> on Mac). Don't use "paste as plain text" (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>V</kbd>), which removes formatting.</li>
-              <li>If Brightspace asks how to paste, choose to keep formatting.</li>
-              <li>Scroll through the pasted text and compare it with this preview before you submit.</li>
-            </ol>
-          </details>
+      <section id="result" hidden>
+        <div class="toolbar">
+          <button type="button" id="copy" class="copy">Copy</button>
+          <span class="status" id="copy-status" role="status" aria-live="polite"></span>
         </div>
 
-        <p class="notice">
-          <strong>Before you submit:</strong> preview the pasted result in Brightspace and check it carefully.
-          Follow your instructor's submission rules. If they ask for an attached file, attach the file instead.
-        </p>
-      </section>
+        <label class="ack" id="ack-row" hidden>
+          <input type="checkbox" id="ack" />
+          I have reviewed the differences and warnings below.
+        </label>
 
-      <section class="results" aria-label="Results">
-        <div class="panel" id="warnings-panel" hidden>
-          <h2>Content that needs attention</h2>
+        <details class="fold" id="attention">
+          <summary id="attention-summary">Content that needs attention</summary>
           <ul class="issues" id="issues"></ul>
           <details class="messages" id="messages-box" hidden>
             <summary>Converter messages (<span id="messages-count"></span>)</summary>
             <ul id="messages"></ul>
           </details>
-        </div>
+        </details>
 
-        <div class="panel" id="check-panel" hidden>
-          <h2>Text check</h2>
-          <p class="check" id="check-summary"></p>
+        <details class="fold" id="check-panel" open hidden>
+          <summary class="bad">Text differs from the Word file</summary>
+          <p class="hint">Struck-through red is in the Word file but not in the copy. Green is in the copy but not in the Word file.</p>
           <div id="check-diff"></div>
-          <p class="hint">
-            Compares every word of the original Word text with the text being copied. Only whitespace
-            (spaces, tabs, line breaks) is ignored; quotes, dashes, accents and punctuation must match exactly.
-          </p>
-        </div>
+        </details>
 
-        <div class="panel preview-panel" id="preview-panel" hidden>
-          <h2>Preview</h2>
-          <div class="preview" id="preview"></div>
-        </div>
+        <details class="fold">
+          <summary>Formatting</summary>
+          <div class="options">
+            <label><input type="checkbox" id="opt-double" /> Double spacing</label>
+            <label><input type="checkbox" id="opt-hanging" checked /> Hanging indent for Works Cited / References <span class="hint" id="hanging-count"></span></label>
+            <label><input type="checkbox" id="opt-images" checked /> Include images <span class="hint" id="image-size"></span></label>
+            <label class="row">Font
+              <select id="opt-font">
+                <option value="">Default</option>
+                <option value="'Times New Roman', Times, serif">Times New Roman</option>
+                <option value="Arial, Helvetica, sans-serif">Arial</option>
+                <option value="Calibri, Carlito, sans-serif">Calibri</option>
+                <option value="Georgia, serif">Georgia</option>
+                <option value="Verdana, sans-serif">Verdana</option>
+              </select>
+            </label>
+            <label class="row">Size
+              <select id="opt-size">
+                <option value="">Default</option>
+                <option value="10pt">10 pt</option>
+                <option value="11pt">11 pt</option>
+                <option value="12pt">12 pt</option>
+                <option value="14pt">14 pt</option>
+              </select>
+            </label>
+          </div>
+        </details>
 
-        <div class="panel empty" id="empty">
-          <p>Choose a Word file to see the converted preview, the text check, and any warnings.</p>
-          <p class="hint">Only .docx is supported. For an old .doc file, open it in Word and save it as .docx first.</p>
-        </div>
+        <details class="fold">
+          <summary>How to paste</summary>
+          <ol class="guide">
+            <li>Click <b>Copy</b>.</li>
+            <li>Click inside the text box (for example, a Brightspace text submission).</li>
+            <li>Paste with <kbd>Ctrl</kbd>+<kbd>V</kbd> (<kbd>⌘</kbd>+<kbd>V</kbd> on Mac). Don't use "paste as plain text", which removes formatting.</li>
+            <li>Compare the pasted text with the preview below before submitting.</li>
+          </ol>
+        </details>
+
+        <div class="preview" id="preview"></div>
       </section>
     </main>
 
     <footer class="foot">
-      Conversion by <a href="https://github.com/mwilliamson/mammoth.js" rel="noreferrer">mammoth.js</a>.
-      Not affiliated with D2L or Brightspace.
+      Check the pasted result before submitting and follow your instructor's submission rules.
+      Runs in your browser; your file is not uploaded. Conversion by
+      <a href="https://github.com/mwilliamson/mammoth.js" rel="noreferrer">mammoth.js</a>.
     </footer>
 
     <script type="module" src="/src/main.ts"></script>

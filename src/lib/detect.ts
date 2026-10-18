@@ -117,7 +117,7 @@ export function issuesFromScan(scan: Scan, ctx: IssueContext): Issue[] {
   };
 
   add("equations", "error", "Equations", scan.equations,
-    "Not converted. Equation content is MISSING from the output. Retype it in Brightspace's equation editor or attach the original file if allowed.");
+    "Not converted. Equation content is MISSING from the output. Retype it with the text box's equation tool or attach the original file if allowed.");
   add("charts", "error", "Charts", scan.charts,
     "Not converted. Charts are MISSING from the output.");
   add("smartart", "error", "SmartArt diagrams", scan.smartArt,
@@ -142,10 +142,10 @@ export function issuesFromScan(scan: Scan, ctx: IssueContext): Issue[] {
 
   if (ctx.embedImages) {
     add("images", "info", "Images", scan.images,
-      "Embedded in the copied HTML. Brightspace may not keep pasted images; if one is missing after pasting, insert it with Brightspace's image button.");
+      "Embedded in the copied HTML. Some text boxes don't keep pasted images; if one is missing after pasting, insert it with the editor's image button.");
   } else {
     add("images", "warning", "Images", scan.images,
-      "Image embedding is OFF, so images are NOT included in the output. Turn it on or insert them in Brightspace.");
+      "Include images is off, so images are NOT in the output. Turn it on or insert them in the text box.");
   }
 
   add("footnotes", "info", "Footnotes", scan.footnotes,

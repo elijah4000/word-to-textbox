@@ -8,9 +8,9 @@ const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getEleme
 
 const fileInput = $<HTMLInputElement>("file");
 const drop = $("drop");
-const fileName = $("file-name");
+const dropTitle = $("drop-title");
 const loadError = $("load-error");
-const optionsSet = $<HTMLFieldSetElement>("options");
+const result = $("result");
 const optDouble = $<HTMLInputElement>("opt-double");
 const optHanging = $<HTMLInputElement>("opt-hanging");
 const optImages = $<HTMLInputElement>("opt-images");
@@ -22,17 +22,15 @@ const copyBtn = $<HTMLButtonElement>("copy");
 const copyStatus = $("copy-status");
 const ackRow = $("ack-row");
 const ack = $<HTMLInputElement>("ack");
-const warningsPanel = $("warnings-panel");
+const attention = $<HTMLDetailsElement>("attention");
+const attentionSummary = $("attention-summary");
 const issuesList = $("issues");
 const messagesBox = $("messages-box");
 const messagesCount = $("messages-count");
 const messagesList = $("messages");
 const checkPanel = $("check-panel");
-const checkSummary = $("check-summary");
 const checkDiff = $("check-diff");
-const previewPanel = $("preview-panel");
 const preview = $("preview");
-const empty = $("empty");
 
 let loaded: LoadedDocument | null = null;
 let output: Output | null = null;
@@ -64,6 +62,8 @@ function formatBytes(n: number): string {
   return `${(n / 1024 / 1024).toFixed(1)} MB`;
 }
 
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
+
 const LARGE_IMAGES = 1024 * 1024;
 const CONTEXT_WORDS = 8;
 
@@ -71,8 +71,10 @@ async function handleFile(file: File) {
   loaded = null;
   output = null;
   loadError.hidden = true;
-  fileName.textContent = file.name;
+  dropTitle.textContent = file.name;
+  drop.classList.add("loaded");
   copyStatus.textContent = "";
+  ack.checked = false;
   if (!/\.docx$/i.test(file.name)) {
     showLoadError(
       /\.doc$/i.test(file.name)
@@ -87,81 +89,75 @@ async function handleFile(file: File) {
     showLoadError(`Could not read this file: ${err instanceof Error ? err.message : String(err)}`);
     return;
   }
-  optionsSet.disabled = false;
   render();
 }
 
 function showLoadError(message: string) {
   loadError.textContent = message;
   loadError.hidden = false;
-  optionsSet.disabled = true;
-  copyBtn.disabled = true;
-  for (const p of [warningsPanel, checkPanel, previewPanel]) p.hidden = true;
-  empty.hidden = false;
+  result.hidden = true;
 }
 
 function render() {
   if (!loaded) return;
   output = produceOutput(loaded, readOptions());
-  empty.hidden = true;
+  result.hidden = false;
 
-  // Options hints
+  // Option hints
   const h = output.formatted.hangingParagraphs;
-  hangingCount.textContent = optHanging.checked ? `(${h} paragraph${h === 1 ? "" : "s"})` : "";
+  hangingCount.textContent = optHanging.checked && h > 0 ? `(${plural(h, "paragraph")})` : "";
   if (loaded.scan.images === 0) {
-    imageSize.textContent = "(no images)";
+    imageSize.textContent = "";
   } else if (optImages.checked) {
-    const big = output.formatted.imageBytes > LARGE_IMAGES;
-    imageSize.textContent = `(${output.formatted.images} image${output.formatted.images === 1 ? "" : "s"}, ${formatBytes(output.formatted.imageBytes)}${big ? ", large: Brightspace may reject or strip them" : ""})`;
+    imageSize.textContent = `(${plural(output.formatted.images, "image")}, ${formatBytes(output.formatted.imageBytes)})`;
   } else {
-    imageSize.textContent = `(${loaded.scan.images} image${loaded.scan.images === 1 ? "" : "s"} left out)`;
+    imageSize.textContent = `(${plural(loaded.scan.images, "image")} left out)`;
   }
 
   renderIssues(output);
   renderTextCheck(output);
 
   preview.innerHTML = output.formatted.html;
-  previewPanel.hidden = false;
 
   const needsAck = !output.textCheck.identical || output.issues.some((i) => i.severity === "error");
   ackRow.hidden = !needsAck;
-  if (!needsAck) ack.checked = false;
   copyBtn.disabled = needsAck && !ack.checked;
 }
 
 function renderIssues(out: Output) {
-  issuesList.replaceChildren();
-  const extra: { severity: "error" | "warning" | "info"; label: string; count: number; detail: string }[] = [];
+  const all = [...out.issues];
   if (out.formatted.images > 0 && out.formatted.imageBytes > LARGE_IMAGES) {
-    extra.push({
+    all.push({
+      id: "large-images",
       severity: "warning",
       label: "Large images",
       count: out.formatted.images,
-      detail: `Embedded images add about ${formatBytes(out.formatted.imageBytes)} to the paste. Brightspace may refuse or strip large pasted content. Consider turning off image embedding and inserting images with Brightspace's image button.`,
+      detail: `Images add about ${formatBytes(out.formatted.imageBytes)} to the paste. Some text boxes refuse or strip large pasted content; if so, turn off "Include images" and insert them with the editor's image button.`,
     });
   }
-  const all = [...out.issues, ...extra];
-  for (const issue of all) {
-    const li = el("li", undefined, `issue ${issue.severity}`);
-    li.append(
-      el("span", issue.severity === "error" ? "Not converted" : issue.severity === "warning" ? "Check" : "Note", "sev"),
-      el("b", issue.label),
-      el("span", `× ${issue.count}`, "count"),
-      el("p", issue.detail),
-    );
-    issuesList.append(li);
-  }
-  if (all.length === 0) {
-    const li = el("li", undefined, "issue info");
-    li.append(el("p", "No equations, text boxes, tracked changes, comments, headers/footers, images or notes were found."));
-    issuesList.append(li);
-  }
+
+  issuesList.replaceChildren(
+    ...all.map((issue) => {
+      const li = el("li", undefined, `issue ${issue.severity}`);
+      li.append(el("b", `${issue.label} × ${issue.count}`), el("p", issue.detail));
+      return li;
+    }),
+  );
 
   const messages = loaded?.conversion.messages ?? [];
   messagesBox.hidden = messages.length === 0;
   messagesCount.textContent = String(messages.length);
   messagesList.replaceChildren(...messages.map((m) => el("li", m)));
-  warningsPanel.hidden = false;
+
+  // Hidden when there is nothing to say; open only when something needs action.
+  const serious = all.filter((i) => i.severity !== "info");
+  attention.hidden = all.length === 0;
+  attention.classList.toggle("has-issues", serious.length > 0);
+  attention.open = serious.length > 0;
+  attentionSummary.textContent =
+    serious.length > 0
+      ? `Needs attention: ${serious.map((i) => i.label.toLowerCase()).join(", ")}`
+      : `Notes: ${all.map((i) => `${i.label.toLowerCase()} ×${i.count}`).join(", ")}`;
 }
 
 function renderOps(ops: DiffOp[]): HTMLElement {
@@ -194,31 +190,16 @@ function renderComparison(title: string, comparison: TextComparison) {
   checkDiff.append(el("p", title, "diff-title"), renderOps(comparison.ops));
 }
 
+// The text check always runs; it is only shown when the text differs.
 function renderTextCheck(out: Output) {
   const tc = out.textCheck;
+  checkPanel.hidden = tc.identical;
   checkDiff.replaceChildren();
-  const noteCount = tc.notes.length;
-  const scope = `${tc.body.wordCount} words${noteCount ? ` + ${noteCount} note${noteCount === 1 ? "" : "s"}` : ""}`;
-  if (tc.identical) {
-    checkSummary.textContent = `Text identical ✓ (${scope} compared)`;
-    checkSummary.className = "check ok";
-    if (out.issues.some((i) => i.severity === "error")) {
-      checkDiff.append(
-        el("p", "The check can only compare text the converter can read. Items marked “Not converted” above are missing from both sides, so this check does not cover them.", "diff-title"),
-      );
-    }
-  } else {
-    checkSummary.textContent = "Text differs ✗ — review before copying";
-    checkSummary.className = "check bad";
-    const legend = el("p", undefined, "hint");
-    legend.append("Red struck-through = in the Word file but not in the copy. Green = in the copy but not in the Word file.");
-    checkDiff.append(legend);
-    renderComparison("Main text", tc.body);
-    for (const note of tc.notes) renderComparison(`Note ${note.id}`, note.comparison);
-    if (tc.missingNotes.length) checkDiff.append(el("p", `Notes missing from the copy: ${tc.missingNotes.join(", ")}`, "diff-title"));
-    if (tc.extraNotes.length) checkDiff.append(el("p", `Unexpected notes in the copy: ${tc.extraNotes.join(", ")}`, "diff-title"));
-  }
-  checkPanel.hidden = false;
+  if (tc.identical) return;
+  renderComparison("Main text", tc.body);
+  for (const note of tc.notes) renderComparison(`Note ${note.id}`, note.comparison);
+  if (tc.missingNotes.length) checkDiff.append(el("p", `Notes missing from the copy: ${tc.missingNotes.join(", ")}`, "diff-title"));
+  if (tc.extraNotes.length) checkDiff.append(el("p", `Unexpected notes in the copy: ${tc.extraNotes.join(", ")}`, "diff-title"));
 }
 
 // --- events ---------------------------------------------------------------
@@ -261,11 +242,8 @@ copyBtn.addEventListener("click", async () => {
   if (!output) return;
   copyStatus.className = "status";
   try {
-    const method = await copyRichText(output.formatted.html, output.plainText, preview);
-    copyStatus.textContent =
-      method === "clipboard-api"
-        ? "Copied ✓ Now paste into the Brightspace text box."
-        : "Copied ✓ (using the browser's copy command). Now paste into Brightspace.";
+    await copyRichText(output.formatted.html, output.plainText, preview);
+    copyStatus.textContent = "Copied ✓ Now paste into the text box.";
     copyStatus.classList.add("ok");
   } catch (err) {
     copyStatus.textContent = err instanceof Error ? err.message : "Copy failed.";
