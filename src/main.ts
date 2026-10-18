@@ -243,7 +243,7 @@ copyBtn.addEventListener("click", async () => {
   copyStatus.className = "status";
   try {
     await copyRichText(output.formatted.html, output.plainText, preview);
-    copyStatus.textContent = "Copied ✓ Now paste into the text box.";
+    copyStatus.textContent = "Copied";
     copyStatus.classList.add("ok");
   } catch (err) {
     copyStatus.textContent = err instanceof Error ? err.message : "Copy failed.";
