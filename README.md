@@ -74,6 +74,5 @@ npm run make-sample  # regenerate samples/*.docx
 two footnotes, a hyperlink, a tab, a line break, smart quotes and dashes, an image
 and a hanging-indent Works Cited list. `samples/problems.docx` has an
 equation, tracked changes, a comment, a header, a footer and a text box.
-
-Results should always be previewed in Brightspace before submitting, and
+Results should always be previewed in the text box before submitting.
 students should follow their instructor's submission rules.
