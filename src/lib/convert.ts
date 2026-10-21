@@ -1,4 +1,6 @@
+import JSZip from "jszip";
 import mammoth from "mammoth";
+import { layoutToCss, parseStyleSheet, readIndent, resolveLayout } from "./paragraphStyles";
 
 /**
  * Converts a .docx with mammoth. The wording is never touched here: mammoth
@@ -6,8 +8,8 @@ import mammoth from "mammoth";
  * applied later (see format.ts) so toggling them never re-reads the file.
  */
 
-export const HANGING_STYLE = "__docx2bs_hanging";
-export const HANGING_CLASS = "docx2bs-hanging";
+/** Class prefix that carries a paragraph's Word layout from here to format.ts. */
+export const LAYOUT_CLASS_PREFIX = "d2b-layout-";
 
 export interface ConversionResult {
   /** HTML straight from mammoth (images embedded as data URIs). */
@@ -16,8 +18,8 @@ export interface ConversionResult {
   rawText: string;
   /** Raw text of each referenced footnote/endnote, keyed like the HTML ids ("footnote-1"). */
   notesText: Map<string, string>;
-  /** Paragraphs that have a hanging indent in the Word file. */
-  hangingParagraphs: number;
+  /** Inline styles (indent, alignment) for each layout class used in `html`. */
+  layoutStyles: Map<string, Record<string, string>>;
   /** Warnings and errors reported by mammoth. */
   messages: string[];
 }
@@ -43,9 +45,14 @@ function walk(element: DocElement, visit: (el: DocElement) => void) {
   for (const child of element.children ?? []) walk(child, visit);
 }
 
-function toTwips(value: unknown): number {
-  const n = typeof value === "string" ? parseInt(value, 10) : NaN;
-  return Number.isFinite(n) ? n : 0;
+/** The HTML tag mammoth's default style map gives a paragraph style. */
+function defaultTag(styleId: unknown, styleName: unknown): string {
+  const name = String(styleName ?? "");
+  const id = String(styleId ?? "");
+  const m = /^heading ?([1-6])$/i.exec(name) ?? /^Heading([1-6])$/.exec(id);
+  if (m) return `h${m[1]}`;
+  if (/^heading$/i.test(name) || id === "Heading") return "h1";
+  return "p";
 }
 
 function input(data: ArrayBuffer) {
@@ -55,35 +62,64 @@ function input(data: ArrayBuffer) {
 }
 
 export async function convertDocx(data: ArrayBuffer): Promise<ConversionResult> {
+  const zip = await JSZip.loadAsync(data);
+  const sheet = parseStyleSheet((await zip.file("word/styles.xml")?.async("string")) ?? "");
+
   const notesText = new Map<string, string>();
-  let hangingParagraphs = 0;
+  const layoutStyles = new Map<string, Record<string, string>>();
+  const classBySignature = new Map<string, string>();
+  const styleMap: string[] = [];
+
+  const layoutClass = (tag: string, css: Record<string, string>): string => {
+    const signature = `${tag}|${JSON.stringify(css)}`;
+    let cls = classBySignature.get(signature);
+    if (!cls) {
+      cls = `${LAYOUT_CLASS_PREFIX}${classBySignature.size + 1}`;
+      classBySignature.set(signature, cls);
+      layoutStyles.set(cls, css);
+      // A unique style name per layout lets the style map add the class while
+      // keeping the tag (p or h1–h6) mammoth would have used anyway.
+      styleMap.push(`p[style-name='${cls}'] => ${tag}.${cls}:fresh`);
+    }
+    return cls;
+  };
 
   const transformDocument = (document: DocElement & { notes: { resolve(ref: unknown): DocElement | null } }) => {
     walk(document, (el) => {
-      if (el.type === "paragraph") {
-        const indent = el.indent as { hanging: string | null } | undefined;
-        // List items and headings keep their own mapping; only plain paragraphs are marked.
-        const isHeading = /^(heading|title)/i.test(String(el.styleName ?? ""));
-        if (indent && toTwips(indent.hanging) > 0 && !el.numbering && !isHeading) {
-          el.styleName = HANGING_STYLE;
-          hangingParagraphs++;
+      if (el.type === "paragraph" && !el.numbering) {
+        // List items keep mammoth's list mapping; their indent comes from the HTML list.
+        const ind = (el.indent ?? {}) as { start?: string; end?: string; firstLine?: string; hanging?: string };
+        const layout = resolveLayout(sheet, el.styleId as string | null, {
+          indent: readIndent(ind),
+          alignment: (el.alignment as string | null) ?? undefined,
+        });
+        const css = layoutToCss(layout);
+        if (Object.keys(css).length > 0) {
+          el.styleName = layoutClass(defaultTag(el.styleId, el.styleName), css);
         }
       }
       if (el.type === "noteReference") {
         const note = document.notes.resolve(el);
         if (note) {
-          notesText.set(`${String(note.noteType)}-${String(note.noteId)}`, (note.body as unknown as DocElement[]).map(rawTextOf).join(""));
+          notesText.set(
+            `${String(note.noteType)}-${String(note.noteId)}`,
+            (note.body as unknown as DocElement[]).map(rawTextOf).join(""),
+          );
         }
       }
     });
     return document;
   };
 
+  // `styleMap` is filled in by transformDocument. Mammoth 1.13 keeps a reference
+  // to this array and reads it only after the transform, which is why the
+  // version is pinned; the indent tests fail if that ever changes.
   const html = await mammoth.convertToHtml(input(data), {
-    styleMap: [`p[style-name='${HANGING_STYLE}'] => p.${HANGING_CLASS}:fresh`],
+    styleMap,
     transformDocument: transformDocument as (element: unknown) => unknown,
     convertImage: mammoth.images.dataUri,
     externalFileAccess: false,
+    ignoreEmptyParagraphs: false,
   });
   const raw = await mammoth.extractRawText(input(data));
 
@@ -92,7 +128,7 @@ export async function convertDocx(data: ArrayBuffer): Promise<ConversionResult> 
     html: html.value,
     rawText: raw.value,
     notesText,
-    hangingParagraphs,
+    layoutStyles,
     messages: [...new Set(messages)],
   };
 }

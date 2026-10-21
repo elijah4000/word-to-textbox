@@ -104,8 +104,8 @@ function render() {
   result.hidden = false;
 
   // Option hints
-  const h = output.formatted.hangingParagraphs;
-  hangingCount.textContent = optHanging.checked && h > 0 ? `(${plural(h, "paragraph")})` : "";
+  const added = output.formatted.addedHanging;
+  hangingCount.textContent = optHanging.checked && added > 0 ? `(${plural(added, "paragraph")})` : "";
   if (loaded.scan.images === 0) {
     imageSize.textContent = "";
   } else if (optImages.checked) {

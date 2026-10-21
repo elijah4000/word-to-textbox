@@ -50,13 +50,14 @@ describe("sample.docx", async () => {
     expect(html).toMatch(/<td style="border: 1px solid/);
   });
 
-  it("applies the hanging indent to the three Works Cited entries", () => {
-    const on = produceOutput(doc, DEFAULT_OPTIONS);
-    expect(on.formatted.hangingParagraphs).toBe(3);
-    expect(on.formatted.html.match(/text-indent: -0.5in/g)).toHaveLength(3);
-    const off = produceOutput(doc, { ...DEFAULT_OPTIONS, hangingIndent: false });
-    expect(off.formatted.html).not.toContain("text-indent");
-    expect(off.formatted.html).not.toContain("docx2bs");
+  it("keeps Word's hanging indent on the three Works Cited entries", () => {
+    for (const hangingIndent of [true, false]) {
+      const out = produceOutput(doc, { ...DEFAULT_OPTIONS, hangingIndent });
+      expect(out.formatted.hangingParagraphs).toBe(3);
+      expect(out.formatted.addedHanging).toBe(0);
+      expect(out.formatted.html.match(/padding-left: 36pt; text-indent: -36pt/g)).toHaveLength(3);
+      expect(out.formatted.html).not.toContain("d2b-layout");
+    }
   });
 
   it("applies spacing and font inline", () => {

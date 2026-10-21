@@ -24,7 +24,7 @@ export async function loadDocx(data: ArrayBuffer): Promise<LoadedDocument> {
 }
 
 export function produceOutput(doc: LoadedDocument, options: FormatOptions): Output {
-  const formatted = formatHtml(doc.conversion.html, options);
+  const formatted = formatHtml(doc.conversion.html, options, doc.conversion.layoutStyles);
   const textCheck = runTextCheck(doc.conversion.rawText, doc.conversion.notesText, formatted.html);
   const plainText = toPlainText(formatted.html);
   const issues = issuesFromScan(doc.scan, { embedImages: options.embedImages });

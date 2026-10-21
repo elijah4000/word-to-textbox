@@ -40,15 +40,28 @@ Note: the text check can only compare what mammoth reads. Content mammoth
 can't read at all (e.g. equations) is missing from *both* sides. That is why the
 warning panel scans the XML separately.
 
+## Indentation and layout
+
+Paragraph layout is kept the way Word shows it, as inline styles:
+
+- First-line, hanging, left and right indents, resolved like Word does: document
+  defaults, then the paragraph style and every style it is based on (so the
+  first-line indent most essay templates put on "Normal" is kept), then the
+  paragraph's own settings
+- Alignment (left, center, right, justified)
+- A Tab at the start of a paragraph becomes a 0.5 in first-line indent
+- Tabs and runs of spaces inside a line, and blank lines, are preserved
+
+List items keep the indentation of the HTML list.
+
 ## Formatting options
 
 All options are applied as inline styles, because Brightspace's editor drops
 stylesheets and classes:
 
 - Double spacing (`line-height: 2`)
-- Hanging indent (0.5 in). It applies to paragraphs that have a hanging indent in
-  Word, and to every paragraph after a "Works Cited" / "References" /
-  "Bibliography" heading
+- Add a hanging indent (0.5 in) to Works Cited / References / Bibliography
+  entries that don't already have one in Word
 - Font family and size
 - Image embedding, with a warning when images exceed 1 MB
 
@@ -74,5 +87,7 @@ npm run make-sample  # regenerate samples/*.docx
 two footnotes, a hyperlink, a tab, a line break, smart quotes and dashes, an image
 and a hanging-indent Works Cited list. `samples/problems.docx` has an
 equation, tracked changes, a comment, a header, a footer and a text box.
+`samples/indents.docx` gets its indentation from every place Word can put it:
+the Normal style, custom styles, paragraph settings, Tab presses and spaces.
 
 Results should always be previewed in the text box before submitting.

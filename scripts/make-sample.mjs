@@ -4,6 +4,9 @@
 //                         a hanging-indent Works Cited list and an image.
 // samples/problems.docx – content that cannot be converted cleanly: an equation,
 //                         a text box, tracked changes, a comment and a header/footer.
+// samples/indents.docx  – an MLA-style essay whose indentation comes from every
+//                         place Word can put it: the Normal style, a custom style,
+//                         direct paragraph settings, Tab key presses and spaces.
 import { writeFileSync, mkdirSync } from "node:fs";
 import { deflateSync, crc32 } from "node:zlib";
 import {
@@ -177,7 +180,40 @@ const problems = new Document({
   ],
 });
 
+const indents = new Document({
+  creator: "DocxToBrightspace test generator",
+  title: "Indentation",
+  styles: {
+    paragraphStyles: [
+      // Like an MLA template: every body paragraph gets a 0.5in first-line indent from Normal.
+      { id: "Normal", name: "Normal", run: { size: 24 }, paragraph: { indent: { firstLine: 720 } } },
+      { id: "BlockQuote", name: "Block Quote", basedOn: "Normal", paragraph: { indent: { left: 1440, firstLine: 0 } } },
+      { id: "CenteredTitle", name: "Centered Title", basedOn: "Normal", paragraph: { alignment: AlignmentType.CENTER, indent: { firstLine: 0 } } },
+    ],
+  },
+  sections: [
+    {
+      children: [
+        new Paragraph({ text: "Jane Student", indent: { firstLine: 0 } }),
+        new Paragraph({ text: "20 October 2026", alignment: AlignmentType.RIGHT, indent: { firstLine: 0 } }),
+        new Paragraph({ text: "Indentation Test Essay", style: "CenteredTitle" }),
+        new Paragraph("This body paragraph has no indent of its own; it inherits a first-line indent from the Normal style."),
+        new Paragraph("So does this second body paragraph, which is how most essay templates work."),
+        new Paragraph({ text: "This quoted passage uses a custom Block Quote style indented one inch from the left with no first-line indent.", style: "BlockQuote" }),
+        new Paragraph({ children: [new TextRun({ children: [new Tab(), "This paragraph was indented by pressing Tab instead of using a style."] })], indent: { firstLine: 0 } }),
+        new Paragraph({ children: [new TextRun({ children: ["Name:", new Tab(), "a tab in the middle of a line, and   three spaces."] })], indent: { firstLine: 0 } }),
+        new Paragraph({ text: "", indent: { firstLine: 0 } }),
+        new Paragraph({ text: "This paragraph follows a blank line and has a direct left indent of 0.5in plus the inherited first-line indent.", indent: { left: 720 } }),
+        new Paragraph({ text: "Works Cited", style: "CenteredTitle" }),
+        new Paragraph({ text: "Alvarez, Maria. Mountain Seasons. Northern Press, 2021. This entry has a hanging indent set in Word.", indent: { left: 720, hanging: 720 } }),
+        new Paragraph({ text: "Chen, David. Weather and Weekend Hiking. Journal of Outdoor Studies, 2023. This entry has no hanging indent in Word.", indent: { firstLine: 0 } }),
+      ],
+    },
+  ],
+});
+
 mkdirSync(new URL("../samples/", import.meta.url), { recursive: true });
 writeFileSync(new URL("../samples/sample.docx", import.meta.url), await Packer.toBuffer(sample));
 writeFileSync(new URL("../samples/problems.docx", import.meta.url), await Packer.toBuffer(problems));
-console.log("Wrote samples/sample.docx and samples/problems.docx");
+writeFileSync(new URL("../samples/indents.docx", import.meta.url), await Packer.toBuffer(indents));
+console.log("Wrote samples/sample.docx, samples/problems.docx and samples/indents.docx");
